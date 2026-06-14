@@ -1,0 +1,158 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Common Helper Functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        request.auth.token.email == 'srikarsharmamarupaka@gmail.com'
+      );
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Helper to validate email addresses format
+    function isValidEmail(email) {
+      return email is string && email.size() <= 128 && email.matches('^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$');
+    }
+
+    // ENTITY VALIDATORS
+
+    // 1. Agenda Validator
+    function isValidAgenda(data) {
+      return data.keys().hasAll(['id', 'title_en', 'title_hi', 'body_en', 'body_hi', 'icon', 'order']) &&
+             data.keys().size() == 7 &&
+             data.id is string && data.id.size() <= 128 &&
+             data.title_en is string && data.title_en.size() <= 200 &&
+             data.title_hi is string && data.title_hi.size() <= 200 &&
+             data.body_en is string && data.body_en.size() <= 5000 &&
+             data.body_hi is string && data.body_hi.size() <= 5000 &&
+             data.icon is string && data.icon.size() <= 100 &&
+             data.order is int;
+    }
+
+    // 2. Research Doc Validator
+    function isValidResearchDoc(data) {
+      return data.keys().hasAll(['id', 'title_en', 'title_hi', 'type', 'year', 'region', 'summary_en', 'summary_hi', 'url', 'timestamp']) &&
+             data.keys().size() == 10 &&
+             data.id is string && data.id.size() <= 128 &&
+             data.title_en is string && data.title_en.size() <= 300 &&
+             data.title_hi is string && data.title_hi.size() <= 300 &&
+             data.type is string && data.type.size() <= 100 &&
+             data.year is int && data.year >= 1500 && data.year <= 2100 &&
+             data.region is string && data.region.size() <= 100 &&
+             data.summary_en is string && data.summary_en.size() <= 5000 &&
+             data.summary_hi is string && data.summary_hi.size() <= 5000 &&
+             data.url is string && data.url.size() <= 2000 &&
+             data.timestamp is timestamp;
+    }
+
+    // 3. Dispatch Validator
+    function isValidDispatch(data) {
+      return data.keys().hasAll(['id', 'title_en', 'title_hi', 'content_en', 'content_hi', 'author', 'tags', 'publishedAt', 'isDraft']) &&
+             data.keys().size() == 9 &&
+             data.id is string && data.id.size() <= 128 &&
+             data.title_en is string && data.title_en.size() <= 300 &&
+             data.title_hi is string && data.title_hi.size() <= 300 &&
+             data.content_en is string && data.content_en.size() <= 50000 &&
+             data.content_hi is string && data.content_hi.size() <= 50000 &&
+             data.author is string && data.author.size() <= 200 &&
+             data.tags is list && data.tags.size() <= 20 &&
+             data.publishedAt is timestamp &&
+             data.isDraft is bool;
+    }
+
+    // 4. Citizen Audit Validator
+    function isValidCitizenAudit(data) {
+      return data.keys().hasAll(['id', 'userId', 'locationName', 'infraType', 'qualityScore', 'climateScore', 'images', 'comments', 'approvedByAdmin', 'createdAt']) &&
+             data.keys().size() == 10 &&
+             data.id is string && data.id.size() <= 128 &&
+             data.userId is string && data.userId.size() <= 128 &&
+             data.locationName is string && data.locationName.size() <= 300 &&
+             data.infraType is string && data.infraType.size() <= 100 &&
+             data.qualityScore is int && data.qualityScore >= 0 && data.qualityScore <= 100 &&
+             data.climateScore is int && data.climateScore >= 0 && data.climateScore <= 10 &&
+             data.images is list && data.images.size() <= 10 &&
+             data.comments is string && data.comments.size() <= 10000 &&
+             data.approvedByAdmin is bool &&
+             data.createdAt is timestamp;
+    }
+
+    // 5. Subscriber Validator
+    function isValidSubscriber(data) {
+      return data.keys().hasAll(['email', 'subscribedAt', 'sourcePlatform']) &&
+             data.keys().size() == 3 &&
+             isValidEmail(data.email) &&
+             data.subscribedAt is timestamp &&
+             data.sourcePlatform is string && data.sourcePlatform.size() <= 100;
+    }
+
+    // MATCH BLOCKS
+
+    // Agendas
+    match /agendas/{agendaId} {
+      allow read: if true;
+      allow create: if isAdmin() && isValidAgenda(incoming());
+      allow update: if isAdmin() && isValidAgenda(incoming());
+      allow delete: if isAdmin();
+    }
+
+    // Research Docs
+    match /research_docs/{docId} {
+      allow read: if true;
+      allow create: if isAdmin() && isValidResearchDoc(incoming());
+      allow update: if isAdmin() && isValidResearchDoc(incoming());
+      allow delete: if isAdmin();
+    }
+
+    // Dispatches
+    match /dispatches/{dispatchId} {
+      allow read: if true;
+      allow create: if isAdmin() && isValidDispatch(incoming());
+      allow update: if isAdmin() && isValidDispatch(incoming());
+      allow delete: if isAdmin();
+    }
+
+    // Citizen Audits
+    match /citizen_audits/{auditId} {
+      allow read: if true;
+      // Anyone can submit, but must follow strict rules:
+      // - approvedByAdmin must be false for non-admins on create
+      // - createdAt must be server time
+      allow create: if isValidCitizenAudit(incoming()) &&
+                    incoming().createdAt == request.time &&
+                    (isAdmin() || incoming().approvedByAdmin == false);
+
+      // Only admin can update or delete
+      allow update: if isAdmin() && isValidCitizenAudit(incoming());
+      allow delete: if isAdmin();
+    }
+
+    // Subscribers
+    match /subscribers/{emailHash} {
+      allow read: if isAdmin();
+      allow create: if isValidSubscriber(incoming()) && incoming().subscribedAt == request.time;
+      allow update, delete: if isAdmin();
+    }
+  }
+}

@@ -1,0 +1,106 @@
+{
+  "entities": {
+    "agenda": {
+      "title": "Agenda",
+      "description": "Thematic focus areas of the Public Infrastructure Forum",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier for the agenda" },
+        "title_en": { "type": "string", "description": "Title in English" },
+        "title_hi": { "type": "string", "description": "Title in Hindi" },
+        "body_en": { "type": "string", "description": "Description in English" },
+        "body_hi": { "type": "string", "description": "Description in Hindi" },
+        "icon": { "type": "string", "description": "Name of lucide icon representation" },
+        "order": { "type": "number", "description": "Display sort order" }
+      },
+      "required": ["id", "title_en", "body_en", "icon", "order"]
+    },
+    "research_doc": {
+      "title": "Research Document",
+      "description": "Categorized research artifacts and documents",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title_en": { "type": "string" },
+        "title_hi": { "type": "string" },
+        "type": { "type": "string", "description": "Type of download (Dashboard, Report, Policy Document, Workshop, Podcast)" },
+        "year": { "type": "number" },
+        "region": { "type": "string" },
+        "summary_en": { "type": "string" },
+        "summary_hi": { "type": "string" },
+        "url": { "type": "string" },
+        "timestamp": { "type": "object", "format": "timestamp" }
+      },
+      "required": ["id", "title_en", "type", "year", "region", "summary_en", "url"]
+    },
+    "dispatch": {
+      "title": "Dispatch",
+      "description": "Chronological news feed, updates, and letters",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title_en": { "type": "string" },
+        "title_hi": { "type": "string" },
+        "content_en": { "type": "string" },
+        "content_hi": { "type": "string" },
+        "author": { "type": "string" },
+        "tags": { "type": "array" },
+        "publishedAt": { "type": "object", "format": "timestamp" },
+        "isDraft": { "type": "boolean" }
+      },
+      "required": ["id", "title_en", "content_en", "author", "publishedAt", "isDraft"]
+    },
+    "citizen_audit": {
+      "title": "Citizen Audit",
+      "description": "Crowdsourced infrastructure audit report",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "locationName": { "type": "string" },
+        "geoPoint": { "type": "object" },
+        "infraType": { "type": "string" },
+        "qualityScore": { "type": "number" },
+        "climateScore": { "type": "number" },
+        "images": { "type": "array" },
+        "comments": { "type": "string" },
+        "approvedByAdmin": { "type": "boolean" },
+        "createdAt": { "type": "object", "format": "timestamp" }
+      },
+      "required": ["id", "userId", "locationName", "infraType", "qualityScore", "climateScore", "comments", "approvedByAdmin", "createdAt"]
+    },
+    "subscriber": {
+      "title": "Subscriber",
+      "description": "Newsletter email list subscribers",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "format": "email" },
+        "subscribedAt": { "type": "object", "format": "timestamp" },
+        "sourcePlatform": { "type": "string" }
+      },
+      "required": ["email", "subscribedAt", "sourcePlatform"]
+    }
+  },
+  "firestore": {
+    "/agendas/{agendaId}": {
+      "schema": { "$ref": "#/entities/agenda" },
+      "description": "Thematic focus areas of PIF"
+    },
+    "/research_docs/{docId}": {
+      "schema": { "$ref": "#/entities/research_doc" },
+      "description": "Research reports and publications"
+    },
+    "/dispatches/{dispatchId}": {
+      "schema": { "$ref": "#/entities/dispatch" },
+      "description": "Newsletter and core blog update feed"
+    },
+    "/citizen_audits/{auditId}": {
+      "schema": { "$ref": "#/entities/citizen_audit" },
+      "description": "Submitted citizen audit assessments"
+    },
+    "/subscribers/{emailHash}": {
+      "schema": { "$ref": "#/entities/subscriber" },
+      "description": "Mailing list subscribers keyed by email"
+    }
+  }
+}
